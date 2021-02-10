@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Example ui plugin</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto">
+    <style>
+        body, html {
+            font-family: 'Roboto', serif;
+            padding: 0px;
+            margin: 0px;
+        }
+
+        h1 {
+            font-size: 20px;
+        }
+
+        h2 {
+            font-size: 16px;
+        }
+
+        div#container,
+        div#nothingSelected {
+            width: 280px;
+            padding: 0px 16px 16px 16px;
+        }
+
+        div.newEffortContainer {
+            margin-bottom: 16px;
+        }
+
+        table {
+            width: 280px;
+        }
+
+        table tr .date,
+        table tr .duration {
+            text-align: left;
+            width: 100px;
+        }
+
+        table tr .charegeable {
+            text-align: left;
+            width: 20px;
+        }
+
+        input[type="text"] {
+            width: 95px;
+        }
+
+        button#send {
+            background-color: #354a5f;
+            color: #FFFFFF;
+        }
+    </style>
+</head>
+
+<body>
+<div id="nothingSelected"><h2>Please select an activity first.</h2></div>
+<div id="container" style="display:none">
+    <div class="newEffortContainer">
+        <h2>New effort</h2>
+        <div>
+            <input type="text" id="date" placeholder="Date">
+            <input type="text" id="duration" placeholder="Duration [h]">
+            <input type="checkbox" id="chargeable">
+            <button id="send" type="button" onclick="addEffort()">Add</button>
+        </div>
+    </div>
+    <div>
+        <hr/>
+    </div>
+    <div>
+        <h2>Recorded efforts</h2>
+        <div id="noEffortsAvailable" style="display:none;">No efforts recorded so far.</div>
+        <table id="effortsHeader">
+            <tr>
+                <th class="date">Date</th>
+                <th class="duration">[h]</th>
+                <th class="charegeable"></th>
+            </tr>
+        </table>
+        <table id="efforts"></table>
+    </div>
+</div>
+
+<script src="https://unpkg.com/fsm-shell"></script>
+<script>
+  function isNumber(n) {
+    return !isNaN(parseFloat(n)) && isFinite(n);
+  }
+
+  function addEffort() {
+    const dateString = document.getElementById('date').value;
+    const duration = document.getElementById('duration').value;
+    const chargeable = document.getElementById('chargeable').checked;
+    const date = new Date(dateString);
+    if (date && duration != '' && isNumber(duration)) {
+      addNewEffort(date, duration, chargeable);
+      resetInputFields();
+    } else {
+      alert('Your input data is invalid.');
+      resetInputFields();
+    }
+  }
+
+  function removeAllEfforts() {
+    const tableHeaderRowCount = 0;
+    const table = document.getElementById('efforts');
+    const rowCount = table.rows.length;
+    for (let i = tableHeaderRowCount; i < rowCount; i++) {
+      table.deleteRow(tableHeaderRowCount);
+    }
+  }
+
+  function addEffortRow(date, duration, chargeable) {
+    const table = document.getElementById('efforts');
+    const row = table.insertRow(-1);
+    const cell1 = row.insertCell(0);
+    const cell2 = row.insertCell(1);
+    const cell3 = row.insertCell(2);
+    cell1.innerHTML = date.getFullYear() + "-" + ("0" + (date.getMonth() + 1)).slice(-2) + "-" + ("0" + date.getDate()).slice(-2);
+    cell1.className = 'date';
+
+    cell2.innerHTML = duration;
+    cell2.className = 'duration';
+
+    cell3.innerHTML = chargeable;
+    cell3.className = 'charegeable';
+  }
+
+  function resetInputFields() {
+    document.getElementById('date').value = '';
+    document.getElementById('duration').value = '';
+    document.getElementById('chargeable').checked = false;
+  }
+
+  function showContainer() {
+    const container = document.getElementById('container');
+    if (container.style.display === "none") {
+      container.style.display = "block";
+    }
+
+    const nothingSelectedDiv = document.getElementById('nothingSelected');
+    if (nothingSelectedDiv.style.display !== "none") {
+      nothingSelectedDiv.style.display = "none";
+    }
+  }
+
+  function showOrHideEfforts(show) {
+    const element1 = document.getElementById('noEffortsAvailable');
+    const element2 = document.getElementById('effortsHeader');
+    const element3 = document.getElementById('efforts');
+    if (show) {
+      element1.style.display = "none";
+      element2.style.display = "block";
+      element3.style.display = "block";
+    } else {
+      element1.style.display = "block";
+      element2.style.display = "none";
+      element3.style.display = "none";
+    }
+  }
+
+  function loadTimeEfforts() {
+    requestNewTokenIfNecessary(() => {
+      fetch(`https://${context.cloudHost}/api/data/v4/TimeEffort/?dtos=TimeEffort.16&account=${context.account}&company=${context.company}&orderBy=startDateTime%20ASC&query=object.objectId=%22${activityId}%22`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Client-ID': 'fsm-extension-time-effort-tracker',
+          'X-Client-Version': '1.0.0',
+          'Authorization': `bearer ${context.auth.access_token}`,
+        }
+      })
+        .then(response => response.json())
+        .then((json) => {
+          removeAllEfforts();
+          if (json && Array.isArray(json.data) && json.data.length > 0) {
+            json.data.forEach(item => {
+              const effort = item.timeEffort;
+              const startDate = new Date(effort.startDateTime);
+              const endDate = new Date(effort.endDateTime);
+              const diffMs = (endDate - startDate);
+              const diffMins = Math.round(diffMs / 60000);
+              const durationMin = diffMins - effort.breakInMinutes;
+              const durationHours = durationMin / 60;
+              const chargeable = effort.chargeOption === 'CHARGEABLE' ? '$' : '';
+              addEffortRow(startDate, durationHours, chargeable);
+            });
+            showOrHideEfforts(true);
+          } else {
+            showOrHideEfforts(false);
+          }
+        });
+    });
+  }
+
+  function addNewEffort(date, duration, chargeable) {
+    const endDate = new Date(date.getTime() + (duration.replace(',', '.') * 60 * 60 * 1000));
+
+    const data = {
+      startDateTime: date.toISOString(),
+      endDateTime: endDate.toISOString(),
+      chargeOption: chargeable ? "CHARGEABLE" : "NONCHARGEABLE",
+      object: {
+        objectId: activityId,
+        objectType: "ACTIVITY"
+      },
+      createPerson: context.erpUserId
+    };
+
+    const options = {
+      method: 'POST',
+      cache: 'no-cache',
+      body: JSON.stringify(data),
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Client-ID': 'fsm-extension-time-effort-tracker',
+        'X-Client-Version': '1.0.0',
+        'Authorization': `bearer ${context.auth.access_token}`,
+      }
+    }
+
+    requestNewTokenIfNecessary(() => {
+      fetch(`https://${context.cloudHost}/api/data/v4/TimeEffort/?dtos=TimeEffort.16&account=${context.account}&company=${context.company}`, options)
+        .then(response => response.json())
+        .then(() => {
+          loadTimeEfforts();
+        });
+    });
+  }
+
+  function requestNewTokenIfNecessary(callback) {
+    const now = new Date();
+    if (now >= tokenExpiryDate) {
+      shellSdk.emit(SHELL_EVENTS.Version1.REQUIRE_AUTHENTICATION, {
+        response_type: 'token'
+      });
+
+      setTimeout(() => {
+        callback();
+      }, 3000);
+    } else {
+      callback();
+    }
+  }
+
+  function updateExpiryDate(expires_in) {
+    const expiryDate = new Date();
+    tokenExpiryDate = new Date(expiryDate.getTime() + ((expires_in * 1000) - 10000));
+  }
+
+  let activityId = null;
+  let context = null;
+  let tokenExpiryDate = null;
+
+  const {ShellSdk, SHELL_EVENTS} = FSMShell;
+
+  if (!ShellSdk.isInsideShell()) {
+    throw new Error('unable to reach shell eventAPI');
+  }
+
+  const shellSdk = ShellSdk.init(parent, '*');
+
+  // get context
+  shellSdk.emit(SHELL_EVENTS.Version1.REQUIRE_CONTEXT, {
+    clientIdentifier: 'example-plugin',
+    auth: {
+      response_type: 'token'
+    }
+  });
+
+  shellSdk.onViewState('activityID', id => {
+    if (id) {
+      activityId = id;
+      showContainer();
+      loadTimeEfforts();
+    }
+  });
+
+  shellSdk.on(SHELL_EVENTS.Version1.REQUIRE_CONTEXT, (event) => {
+    context = JSON.parse(event);
+    updateExpiryDate(context.auth.expires_in);
+  });
+
+  shellSdk.on(SHELL_EVENTS.Version1.REQUIRE_AUTHENTICATION, (event) => {
+    context.auth = event;
+    updateExpiryDate(event.expires_in);
+  });
+
+</script>
+</body>
+</html>

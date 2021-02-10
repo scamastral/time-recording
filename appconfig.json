@@ -1,0 +1,10 @@
+{
+  "name": "time-effort-tracker",
+  "provider": "SAP SE",
+  "description": "Keep track on my time efforts",
+  "version": "1.0.0",
+  "icon": "",
+  "useShellSDK": true,
+  "parameters": [],
+  "outletPositions": []
+}
