@@ -6,6 +6,6 @@
   "icon": "https://biiit.github.io/time-recording/icon.png",
   "useShellSDK": true,
   "parameters": [],
-  "outletPositions": ["WFM_ACTIVITY_SIDEBAR", "SHELL_HOME"],
+  "outletPositions": ["WFM_ACTIVITY_SIDEBAR", "SHELL_HOME_SCREEN"],
   "optimalHeight": "320px"
 }
