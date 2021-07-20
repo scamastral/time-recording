@@ -3,7 +3,7 @@
   "provider": "SAP SE",
   "description": "As a dispatcher directly maintain your efforts on a selected activity without leaving the planning board.",
   "version": "1.0.0",
-  "icon": "http://biiit.github.io/time-recording/icon.png",
+  "icon": "https://biiit.github.io/time-recording/icon.png",
   "useShellSDK": true,
   "parameters": [],
   "outletPositions": ["WFM_ACTIVITY_SIDEBAR", "SHELL_HOME_SCREEN"],
